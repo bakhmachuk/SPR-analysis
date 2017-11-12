@@ -1,0 +1,174 @@
+import matplotlib.pyplot as plt
+import numpy as np
+import statsmodels.api as sm
+import matplotlib.patches as mpatches
+import pandas as pd
+
+"""List of functions"""
+def response_mean_std(lst_mean, lst_std):
+    """takes a user input, converts in to the numpy array and counts mean and standard deviation for every concentration
+    CALIBRATION CURVE AND SERUM SAMPLES"""
+    response_input = input('Введите через запятую отклики ППР для данного образца (используйте точку как десятичный разделитель): ' )
+    response_input_separate = response_input.split(', ')
+    response = []
+    for item in response_input_separate:
+        float_num = float(item)
+        response.append(float_num)
+    response = np.array(response)
+    mean_r = np.mean(response)
+    lst_mean.append(round(mean_r, 4))
+    std_r = np.std(response, ddof = 1)
+    lst_std.append(round(std_r, 4))
+    return lst_mean
+    return lst_std
+
+def creating_sample_lists():
+    """Creating lists of names, dilutions and known concentrations"""
+    input_name = input('Введите через запятую название образца и его разведение: ')
+    input_concG = input('Введите для данного образца концентрацию IgG, mg/ml, посчитанную с помощью метода RID: ')
+    input_conct = input('Введите для данного образца концентрацию Ig total, mg/ml, посчитанную с помощью метода RID : ')
+    separate_name = input_name.split(', ')
+    sample_names.append(separate_name[0])
+    dilution.append(int(separate_name[1]))
+    list_total_conc.append(float(input_conct))
+    list_G_conc.append(float(input_concG))
+    return sample_names
+    return dilution
+    return list_G_conc
+    return list_total_conc
+                       
+def round_f(lst):
+    """function for rounding of the result in the list"""
+    for index, item in enumerate(lst):
+        x = round(item, 2)
+        lst[index] = x
+    return lst
+
+def statistic_model_and_plot(lst_x, lst_y, lst_std):
+    """Finding some statistical parameters from linear regression model"""
+    model = sm.OLS(lst_y, lst_x).fit()
+    coeff_linear_regr[0] = model.params[0]
+    r_squared = model.rsquared
+    equation = 'y = {} * x'.format(round(coeff_linear_regr[0], 4))
+    rsquar = 'R squared = {}'.format(round(r_squared, 2))
+    """plot the result"""
+    plt.scatter(lst_x, lst_y)
+    plt.errorbar(lst_x, lst_y, lst_std, linestyle='None', elinewidth = 0.8, c = 'black', capsize = 2)
+    X_plot = np.linspace(0, max(lst_x))
+    plt.plot(X_plot, X_plot*coeff_linear_regr[0], c = 'black')
+    ax = plt.gca()
+    ax.yaxis.grid(True, linestyle = 'dashed')
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.ylim(ymin = 0)
+    plt.xlim(xmin = 0)
+    plt.title(title)
+    patch = mpatches.Patch(label = equation)
+    patch2 = mpatches.Patch(label = rsquar)
+    plt.legend(handles=[patch, patch2], handlelength = 0)
+    plt.show()
+    
+"""BUILDING A CALIBRATION CURVE"""
+#Transformation of users input into numpy array
+concentration_input = input('Введите через запятую концентрации IgG, мкг/мл, использовавшиеся для калибровки (используйте точку как десятичный разделитель): ')
+concentration_input_separate = concentration_input.split(', ')
+concentration = [0.0]
+for i in concentration_input_separate:
+    float_num = float(i)
+    concentration.append(float_num)
+concentration = np.array(concentration)
+
+mean_response = []
+std_response = []
+
+for i in concentration:
+    print('{} мкг/мл IgG: '.format(i))
+    response_mean_std(mean_response, std_response)
+
+#converting obtained values into numpy array
+mean_response = np.array(mean_response)
+std_response = np.array(std_response)
+
+"""Calling the fuction for linear regression model and plot the calibration curve"""
+coeff_linear_regr = [0.0]
+xlabel = 'IgG concentration, mkg/ml'
+ylabel = 'SPR response, ang. deg.'
+title = 'Calibration curve'
+statistic_model_and_plot(concentration, mean_response, std_response)
+
+"""COUNTING CONCENTRATIONS OF THE SAMPLES"""
+mean_response_samples = []
+std_response_samples = []
+sample_names = []
+dilution = []
+list_total_conc = []
+list_G_conc = []
+
+"""users input of the amount of samples"""
+sample_amount = int(input('Введите количество pазных образцов, которые Вы измерили: '))
+list_of_sample_amount = [i+1 for i in range(sample_amount)]
+
+"""Calling counting functions for every sample"""
+for i in list_of_sample_amount:
+    print('Образец № {}'.format(i))
+    creating_sample_lists()
+    response_mean_std(mean_response_samples, std_response_samples)
+
+#converting obtained values into numpy array
+mean_response_samples = np.array(mean_response_samples)
+std_response_samples = np.array(std_response_samples)
+dilution = np.array(dilution)
+list_G_conc = np.array(list_G_conc)
+list_total_conc = np.array(list_total_conc)
+"""calculations of values"""
+count_concentration = mean_response_samples / coeff_linear_regr[0] * dilution / 1000
+counted_to_G = count_concentration / list_G_conc
+counted_to_total = count_concentration / list_total_conc
+std_for_calculated_concentrations = std_response_samples / coeff_linear_regr[0] * dilution / 1000
+round_f(counted_to_G)
+round_f(counted_to_total)
+round_f(count_concentration)
+mean_corr_G = np.mean(counted_to_G)
+mean_corr_total = np.mean(counted_to_total)
+count_conc_with_corr_G_round = round_f(count_concentration / mean_corr_G)
+count_conc_with_corr_tot_round = round_f(count_concentration / mean_corr_total)
+std_for_calc_conc_with_total_coef = std_for_calculated_concentrations / counted_to_total
+
+std_corr_G = np.std(counted_to_G, ddof = 1)
+std_corr_total = np.std(counted_to_total, ddof = 1)
+print('\nСредний коэффициент соотношения концентрации, посчитаной с помощью ППР, и концентрации IgG, посчитанной с помощью RID: ', round(mean_corr_G, 2), ' +- ', round(std_corr_G, 2))
+print('Средний коэффициент соотношения концентрации, посчитаной с помощью ППР, и концентрации Ig total, посчитанной с помощью RID: ', round(mean_corr_total, 2), ' +- ', round(std_corr_total, 2))
+
+"""indexes for excel table"""
+index_array = np.array(['Sample', 'Mean SPR response, ang.deg.', 'std of mean response', 'Concentration of Ig in sample, counted from equation by calibration curve, mg/ml', 
+                        'IgG concentration, mg/ml, measured by RID', 'Ig total concentration, mg/ml, measured by RID', 
+                       'Correlation between concentration counted by SPR and IgG concentration', 
+                       'Correlation between concentration counted by SPR and Ig total concentration', 
+                       'Counted concentration with using correlation between IgG', 
+                       'Counted concentration with using correlation between Ig total'])
+
+"""creating tables and writing them into the excel file"""
+table = np.array([concentration, mean_response, std_response])
+df = pd.DataFrame(table, index = ['IgG concentration, mkg/ml','Mean', 'std'])
+writer = pd.ExcelWriter('analysis.xlsx', engine='xlsxwriter')
+df.to_excel(writer, 'Calibration', header = None)
+
+table2 = np.array([sample_names, mean_response_samples, std_response_samples, count_concentration, 
+                  list_G_conc, list_total_conc, counted_to_G, counted_to_total, 
+                  count_conc_with_corr_G_round, count_conc_with_corr_tot_round])
+df2 = pd.DataFrame(table2, index = index_array)
+df2.to_excel(writer, 'Samples', header = None)
+writer.save()
+
+"""Calling the fuction for linear regression model and plot the sample data"""
+xlabel = 'total Ig concentration, counted by RID, mg/ml'
+ylabel = 'Ig concentration, counted by equation, mg/ml'
+title = 'Comparison of RID and SPR methods'
+statistic_model_and_plot(list_total_conc, count_concentration, std_for_calculated_concentrations)
+
+"""Calling the fuction for linear regression model and plot the sample data
+USING CORRELATION COEF FOR TOTAL"""
+xlabel = 'total Ig concentration, counted by RID, mg/ml'
+ylabel = 'total Ig concentration, using correlation, mg/ml'
+title = 'Comparison of RID and SPR methods with correlation'
+statistic_model_and_plot(list_total_conc, count_conc_with_corr_tot_round, std_for_calc_conc_with_total_coef)
